@@ -30,21 +30,37 @@ function _doSingle(req) {
   }
 
   var payload = _buildWorkerPayload(req);
-
-  var resp = UrlFetchApp.fetch(WORKER_URL, {
+  var options = {
     method: "post",
     contentType: "application/json",
     payload: JSON.stringify(payload),
     muteHttpExceptions: true,
     followRedirects: true
-  });
+  };
 
   try {
-    return _json(JSON.parse(resp.getContentText()));
-  } catch (e) {
-    return _json({ e: "invalid worker response", raw: resp.getContentText() });
+    var resp = UrlFetchApp.fetch(WORKER_URL, options);
+    var statusCode = resp.getResponseCode();
+    var content = resp.getContentText();
+
+    if (statusCode !== 200) {
+      return _json({ e: "worker error", s: statusCode, d: content });
+    }
+
+    return _json(JSON.parse(content));
+  } catch (err) {
+    return _json({ e: "fetch failed", d: String(err) });
   }
 }
+
+/**
+ * Helper to generate a direct relay URL for streaming/fonts/video.
+ * This bypasses GAS and hits the Node worker directly.
+ */
+function getDirectUrl(targetUrl) {
+  return WORKER_URL + "/raw?u=" + encodeURIComponent(targetUrl);
+}
+
 
 function _doBatch(items) {
   var fetchArgs = [];
